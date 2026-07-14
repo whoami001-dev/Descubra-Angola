@@ -12,6 +12,7 @@ interface ProvincesViewProps {
   isDarkMode: boolean;
   onAddCommentToast: (msg: string) => void;
   spots: TouristSpot[];
+  provinces?: Province[];
 }
 
 // Initial mockup reviews
@@ -36,6 +37,7 @@ export default function ProvincesView({
   isDarkMode,
   onAddCommentToast,
   spots,
+  provinces,
 }: ProvincesViewProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClimate, setSelectedClimate] = useState("all");
@@ -53,7 +55,9 @@ export default function ProvincesView({
   // Filters
   const climates = ["all", "Tropical", "Semiárido", "Temperado", "Equatorial", "Desértico"];
 
-  const filteredProvinces = PROVINCES.filter((prov) => {
+  const provincesList = provinces || PROVINCES;
+
+  const filteredProvinces = provincesList.filter((prov) => {
     const matchesSearch =
       prov.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prov.capital.toLowerCase().includes(searchTerm.toLowerCase());
@@ -63,7 +67,7 @@ export default function ProvincesView({
     return matchesSearch && matchesClimate;
   });
 
-  const selectedProvince = PROVINCES.find((p) => p.id === selectedProvinceId);
+  const selectedProvince = provincesList.find((p) => p.id === selectedProvinceId);
   const spotsInProvince = selectedProvince
     ? spots.filter((s) => s.provinceId === selectedProvince.id)
     : [];

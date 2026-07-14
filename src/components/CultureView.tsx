@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Utensils, Award, BookOpen, Clock, Gauge, Compass, Sparkles, CheckSquare, Star, Users, MapPin } from "lucide-react";
 import { RECIPES, CULTURE_TOPICS, PROVINCES } from "../data";
@@ -8,15 +8,27 @@ interface CultureViewProps {
   translate: (key: string) => string;
   isDarkMode: boolean;
   onAddCommentToast: (msg: string) => void;
+  recipes?: Recipe[];
+  cultureTopics?: any;
 }
 
 export default function CultureView({
   translate,
   isDarkMode,
   onAddCommentToast,
+  recipes,
+  cultureTopics,
 }: CultureViewProps) {
   const [activeTab, setActiveTab] = useState<"culture" | "gastronomy">("culture");
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(RECIPES[0]);
+  
+  const activeRecipes = recipes || RECIPES;
+  const activeCultureTopics = cultureTopics || CULTURE_TOPICS;
+
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(activeRecipes[0]);
+
+  useEffect(() => {
+    setSelectedRecipe(activeRecipes[0]);
+  }, [recipes]);
 
   // Checklist states for ingredients
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
@@ -88,7 +100,7 @@ export default function CultureView({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {CULTURE_TOPICS.dances.map((dance, i) => (
+                {activeCultureTopics.dances.map((dance, i) => (
                   <div
                     key={i}
                     className="bg-white dark:bg-brand-dark border border-gray-150 dark:border-gray-800 p-5 rounded-2xl shadow-sm hover:shadow-md transition space-y-3"
@@ -114,7 +126,7 @@ export default function CultureView({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {CULTURE_TOPICS.masks.map((mask, i) => (
+                {activeCultureTopics.masks.map((mask, i) => (
                   <div
                     key={i}
                     className="bg-white dark:bg-brand-dark border border-gray-150 dark:border-gray-800 p-5 rounded-2xl shadow-sm hover:shadow-md transition space-y-3"
@@ -138,7 +150,7 @@ export default function CultureView({
                   <span>Línguas Nacionais Bantas</span>
                 </h3>
                 <div className="space-y-4">
-                  {CULTURE_TOPICS.languages.map((lang, i) => (
+                  {activeCultureTopics.languages.map((lang, i) => (
                     <div key={i} className="text-xs">
                       <h4 className="font-bold text-gray-800 dark:text-gray-200">{lang.name}</h4>
                       <p className="text-gray-500 dark:text-gray-400 leading-relaxed mt-0.5">{lang.desc}</p>
@@ -154,7 +166,7 @@ export default function CultureView({
                   <span>Instrumentos Tradicionais</span>
                 </h3>
                 <div className="space-y-4">
-                  {CULTURE_TOPICS.instruments.map((inst, i) => (
+                  {activeCultureTopics.instruments.map((inst, i) => (
                     <div key={i} className="text-xs">
                       <h4 className="font-bold text-gray-800 dark:text-gray-200">{inst.name}</h4>
                       <p className="text-gray-500 dark:text-gray-400 leading-relaxed mt-0.5">{inst.desc}</p>
@@ -180,7 +192,7 @@ export default function CultureView({
               </h3>
 
               <div className="space-y-3">
-                {RECIPES.map((recipe) => (
+                {activeRecipes.map((recipe) => (
                   <button
                     key={recipe.id}
                     onClick={() => {

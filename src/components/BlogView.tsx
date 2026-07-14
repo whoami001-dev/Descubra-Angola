@@ -8,12 +8,14 @@ interface BlogViewProps {
   translate: (key: string) => string;
   isDarkMode: boolean;
   onAddCommentToast: (msg: string) => void;
+  blogPosts?: BlogPost[];
 }
 
 export default function BlogView({
   translate,
   isDarkMode,
   onAddCommentToast,
+  blogPosts,
 }: BlogViewProps) {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -23,11 +25,12 @@ export default function BlogView({
   const [inputMessage, setInputMessage] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  const activePost = BLOG_POSTS.find((p) => p.id === selectedPostId);
+  const postsList = blogPosts || BLOG_POSTS;
+  const activePost = postsList.find((p) => p.id === selectedPostId);
 
   const categories = ["all", "Guias", "Dicas", "Cultura", "História"];
 
-  const filteredPosts = BLOG_POSTS.filter((post) => {
+  const filteredPosts = postsList.filter((post) => {
     return selectedCategory === "all" || post.category === selectedCategory;
   });
 

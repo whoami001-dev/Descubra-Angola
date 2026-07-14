@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Compass, MapPin, Route, Sparkles, BookOpen, Shield, User, 
-  Heart, Star, Sun, Moon, Globe, Menu, X, ArrowUp, Send, CheckCircle2 
+  Heart, Star, Sun, Moon, Menu, X, ArrowUp, Send, CheckCircle2 
 } from "lucide-react";
 import HomeView from "./components/HomeView";
 import ProvincesView from "./components/ProvincesView";
@@ -13,8 +13,8 @@ import CultureView from "./components/CultureView";
 import BlogView from "./components/BlogView";
 import AccountView from "./components/AccountView";
 import GlobalAssistant from "./components/GlobalAssistant";
-import { TOURIST_SPOTS, PROVINCES } from "./data";
-import { TouristSpot } from "./types";
+import { TOURIST_SPOTS, PROVINCES, EVENTS, BLOG_POSTS, RECIPES, CULTURE_TOPICS } from "./data";
+import { TouristSpot, BlogPost, Recipe, EventItem } from "./types";
 import { 
   UserSession, getActiveUser, logUserActivity, getSavedPlanner, savePlannerToDb 
 } from "./lib/authService.ts";
@@ -25,7 +25,7 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     title: "Descubra Angola",
     subtitle: "Explore a terra dos ritmos, cores e belezas infinitas",
     hero_title: "Descubra Angola",
-    hero_subtitle: "descubra os melhores lugares magicos de um do melhor pais de Africa, Angola",
+    hero_subtitle: "Descubra as culturas,Comidas e espacos famosos de Angola.",
     nav_home: "Início",
     nav_provinces: "Províncias",
     nav_map: "Mapa",
@@ -105,6 +105,232 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
   }
 };
 
+// ==========================================
+// DATASET TRANSLATION HELPERS
+// ==========================================
+async function translateProvinces(provinces: any[], lang: string): Promise<any[]> {
+  try {
+    const textsToTranslate: string[] = [];
+    provinces.forEach(p => {
+      textsToTranslate.push(p.history || "");
+      textsToTranslate.push(p.location || "");
+      textsToTranslate.push(p.population || "");
+      textsToTranslate.push(p.climate || "");
+      textsToTranslate.push(p.culture || "");
+      textsToTranslate.push(p.gastronomy || "");
+      textsToTranslate.push(p.bestSeason || "");
+      p.curiosities?.forEach((c: string) => textsToTranslate.push(c));
+      p.restaurants?.forEach((r: any) => textsToTranslate.push(r.specialty));
+      p.transport?.forEach((t: string) => textsToTranslate.push(t));
+    });
+
+    const res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts: textsToTranslate, targetLanguage: lang })
+    });
+    const data = await res.json();
+    const translated = data.translatedTexts || textsToTranslate;
+
+    let index = 0;
+    return provinces.map(p => {
+      const history = translated[index++] || p.history;
+      const location = translated[index++] || p.location;
+      const population = translated[index++] || p.population;
+      const climate = translated[index++] || p.climate;
+      const culture = translated[index++] || p.culture;
+      const gastronomy = translated[index++] || p.gastronomy;
+      const bestSeason = translated[index++] || p.bestSeason;
+      const curiosities = p.curiosities?.map(() => translated[index++] || "") || [];
+      const restaurants = p.restaurants?.map((r: any) => ({ ...r, specialty: translated[index++] || r.specialty })) || [];
+      const transport = p.transport?.map(() => translated[index++] || "") || [];
+      return { ...p, history, location, population, climate, culture, gastronomy, bestSeason, curiosities, restaurants, transport };
+    });
+  } catch (err) {
+    console.error("translateProvinces error:", err);
+    return provinces;
+  }
+}
+
+async function translateSpots(spots: TouristSpot[], lang: string): Promise<TouristSpot[]> {
+  try {
+    const textsToTranslate: string[] = [];
+    spots.forEach(s => {
+      textsToTranslate.push(s.description || "");
+      if (s.history) textsToTranslate.push(s.history);
+      textsToTranslate.push(s.price || "");
+      textsToTranslate.push(s.hours || "");
+      textsToTranslate.push(s.bestSeason || "");
+      textsToTranslate.push(s.visitDuration || "");
+      textsToTranslate.push(s.difficulty || "");
+      s.curiosities?.forEach(c => textsToTranslate.push(c));
+      s.whatToBring?.forEach(w => textsToTranslate.push(w));
+      s.oQueFazer?.forEach(q => textsToTranslate.push(q));
+    });
+
+    const res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts: textsToTranslate, targetLanguage: lang })
+    });
+    const data = await res.json();
+    const translated = data.translatedTexts || textsToTranslate;
+
+    let index = 0;
+    return spots.map(s => {
+      const description = translated[index++] || s.description;
+      const history = s.history ? (translated[index++] || s.history) : s.history;
+      const price = translated[index++] || s.price;
+      const hours = translated[index++] || s.hours;
+      const bestSeason = translated[index++] || s.bestSeason;
+      const visitDuration = translated[index++] || s.visitDuration;
+      const difficulty = translated[index++] || s.difficulty;
+      const curiosities = s.curiosities?.map(() => translated[index++] || "") || [];
+      const whatToBring = s.whatToBring?.map(() => translated[index++] || "") || [];
+      const oQueFazer = s.oQueFazer?.map(() => translated[index++] || "") || [];
+      return { ...s, description, history, price, hours, bestSeason, visitDuration, difficulty, curiosities, whatToBring, oQueFazer };
+    });
+  } catch (err) {
+    console.error("translateSpots error:", err);
+    return spots;
+  }
+}
+
+async function translateBlogPosts(posts: BlogPost[], lang: string): Promise<BlogPost[]> {
+  try {
+    const textsToTranslate: string[] = [];
+    posts.forEach(p => {
+      textsToTranslate.push(p.title || "");
+      textsToTranslate.push(p.category || "");
+      textsToTranslate.push(p.snippet || "");
+      textsToTranslate.push(p.content || "");
+      textsToTranslate.push(p.readTime || "");
+    });
+
+    const res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts: textsToTranslate, targetLanguage: lang })
+    });
+    const data = await res.json();
+    const translated = data.translatedTexts || textsToTranslate;
+
+    let index = 0;
+    return posts.map(p => {
+      const title = translated[index++] || p.title;
+      const category = translated[index++] || p.category;
+      const snippet = translated[index++] || p.snippet;
+      const content = translated[index++] || p.content;
+      const readTime = translated[index++] || p.readTime;
+      return { ...p, title, category, snippet, content, readTime };
+    });
+  } catch (err) {
+    console.error("translateBlogPosts error:", err);
+    return posts;
+  }
+}
+
+async function translateRecipes(recipes: Recipe[], lang: string): Promise<Recipe[]> {
+  try {
+    const textsToTranslate: string[] = [];
+    recipes.forEach(r => {
+      textsToTranslate.push(r.name || "");
+      textsToTranslate.push(r.history || "");
+      textsToTranslate.push(r.duration || "");
+      r.ingredients?.forEach(i => textsToTranslate.push(i));
+      r.recipe?.forEach(s => textsToTranslate.push(s));
+    });
+
+    const res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts: textsToTranslate, targetLanguage: lang })
+    });
+    const data = await res.json();
+    const translated = data.translatedTexts || textsToTranslate;
+
+    let index = 0;
+    return recipes.map(r => {
+      const name = translated[index++] || r.name;
+      const history = translated[index++] || r.history;
+      const duration = translated[index++] || r.duration;
+      const ingredients = r.ingredients?.map(() => translated[index++] || "") || [];
+      const recipe = r.recipe?.map(() => translated[index++] || "") || [];
+      return { ...r, name, history, duration, ingredients, recipe };
+    });
+  } catch (err) {
+    console.error("translateRecipes error:", err);
+    return recipes;
+  }
+}
+
+async function translateEvents(events: EventItem[], lang: string): Promise<EventItem[]> {
+  try {
+    const textsToTranslate: string[] = [];
+    events.forEach(e => {
+      textsToTranslate.push(e.name || "");
+      textsToTranslate.push(e.location || "");
+      textsToTranslate.push(e.description || "");
+      textsToTranslate.push(e.category || "");
+    });
+
+    const res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts: textsToTranslate, targetLanguage: lang })
+    });
+    const data = await res.json();
+    const translated = data.translatedTexts || textsToTranslate;
+
+    let index = 0;
+    return events.map(e => {
+      const name = translated[index++] || e.name;
+      const location = translated[index++] || e.location;
+      const description = translated[index++] || e.description;
+      const category = translated[index++] || e.category;
+      return { ...e, name, location, description, category };
+    });
+  } catch (err) {
+    console.error("translateEvents error:", err);
+    return events;
+  }
+}
+
+async function translateCultureTopics(topics: any, lang: string): Promise<any> {
+  try {
+    const textsToTranslate: string[] = [];
+    const keys = ["dances", "masks", "languages", "instruments"];
+    keys.forEach(k => {
+      topics[k]?.forEach((item: any) => {
+        textsToTranslate.push(item.name || "");
+        textsToTranslate.push(item.desc || "");
+      });
+    });
+
+    const res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts: textsToTranslate, targetLanguage: lang })
+    });
+    const data = await res.json();
+    const translated = data.translatedTexts || textsToTranslate;
+
+    let index = 0;
+    const result: any = {};
+    keys.forEach(k => {
+      result[k] = topics[k]?.map((item: any) => {
+        const name = translated[index++] || item.name;
+        const desc = translated[index++] || item.desc;
+        return { ...item, name, desc };
+      }) || [];
+    });
+    return result;
+  } catch (err) {
+    console.error("translateCultureTopics error:", err);
+    return topics;
+  }
+}
+
 export default function App() {
   const [currentView, setCurrentView] = useState<string>("home");
   const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
@@ -123,30 +349,127 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getActiveUser());
 
   // UI preferences
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [language, setLanguage] = useState<string>("pt");
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("darkMode");
+      if (saved !== null) {
+        return JSON.parse(saved);
+      }
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    } catch {
+      return false;
+    }
+  });
+  const language = "pt";
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
-
+  
   // Newsletter state
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
-
+  
   // Global Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Translation helper
-  const translate = (key: string) => {
-    return TRANSLATIONS[language]?.[key] || TRANSLATIONS["pt"]?.[key] || key;
-  };
+  // Translation dataset states
+  const [translatedProvinces, setTranslatedProvinces] = useState<any[]>(PROVINCES);
+  const [translatedSpots, setTranslatedSpots] = useState<TouristSpot[]>(TOURIST_SPOTS);
+  const [translatedRecipes, setTranslatedRecipes] = useState<any[]>(RECIPES);
+  const [translatedBlogPosts, setTranslatedBlogPosts] = useState<any[]>(BLOG_POSTS);
+  const [translatedEvents, setTranslatedEvents] = useState<any[]>(EVENTS);
+  const [translatedCultureTopics, setTranslatedCultureTopics] = useState<any>(CULTURE_TOPICS);
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
 
+  // Dynamic on-the-fly custom translations cache (for generic hardcoded strings in components)
+  const [customTranslations, setCustomTranslations] = useState<Record<string, Record<string, string>>>(() => {
+    try {
+      const saved = localStorage.getItem("custom_translations");
+      return saved ? JSON.parse(saved) : { en: {}, fr: {}, es: {}, pt: {} };
+    } catch {
+      return { en: {}, fr: {}, es: {}, pt: {} };
+    }
+  });
+
+  const pendingTranslationsRef = useRef<Set<string>>(new Set());
+  const translationTimeoutRef = useRef<any>(null);
+
+  const queueTranslation = useCallback((text: string, targetLang: string) => {
+    if (targetLang === "pt" || !text) return;
+    if (customTranslations[targetLang]?.[text]) return;
+    if (pendingTranslationsRef.current.has(text)) return;
+
+    pendingTranslationsRef.current.add(text);
+
+    if (translationTimeoutRef.current) {
+      clearTimeout(translationTimeoutRef.current);
+    }
+
+    translationTimeoutRef.current = setTimeout(async () => {
+      const list = Array.from(pendingTranslationsRef.current) as string[];
+      pendingTranslationsRef.current.clear();
+      if (list.length === 0) return;
+
+      try {
+        const res = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texts: list, targetLanguage: targetLang })
+        });
+        const data = await res.json();
+        const translated = data.translatedTexts;
+        if (translated && Array.isArray(translated)) {
+          setCustomTranslations(prev => {
+            const nextLang = { ...prev[targetLang] };
+            list.forEach((orig, idx) => {
+              if (translated[idx]) {
+                nextLang[orig] = translated[idx];
+              }
+            });
+            const updated = { ...prev, [targetLang]: nextLang };
+            localStorage.setItem("custom_translations", JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.error("Failed to translate batch", err);
+      }
+    }, 400);
+  }, [customTranslations]);
+  
+  // High-fidelity Translation helper
+  const translate = useCallback((key: string) => {
+    if (!key) return "";
+
+    // 1. Check in static translation dictionaries
+    if (TRANSLATIONS[language]?.[key]) {
+      return TRANSLATIONS[language][key];
+    }
+
+    if (language === "pt") return key;
+
+    // Try finding key by its Portuguese value in TRANSLATIONS pt
+    const foundKey = Object.keys(TRANSLATIONS["pt"]).find(k => TRANSLATIONS["pt"][k] === key);
+    if (foundKey && TRANSLATIONS[language]?.[foundKey]) {
+      return TRANSLATIONS[language][foundKey];
+    }
+
+    // 2. Check in dynamic translations cache
+    if (customTranslations[language]?.[key]) {
+      return customTranslations[language][key];
+    }
+
+    // 3. Queue for translation
+    queueTranslation(key, language);
+    return key;
+  }, [language, customTranslations, queueTranslation]);
+  
   const showToast = (message: string) => {
     setToastMessage(message);
     setTimeout(() => {
       setToastMessage(null);
     }, 4000);
   };
-
+  
   // Dark Mode side effects
   useEffect(() => {
     const root = window.document.documentElement;
@@ -155,7 +478,89 @@ export default function App() {
     } else {
       root.classList.remove("dark");
     }
+    try {
+      localStorage.setItem("darkMode", JSON.stringify(isDarkMode));
+    } catch (e) {
+      console.warn(e);
+    }
   }, [isDarkMode]);
+
+  // Language side effects and dynamic dataset translation
+  useEffect(() => {
+    try {
+      localStorage.setItem("language", language);
+    } catch (e) {
+      console.warn(e);
+    }
+
+    if (language === "pt") {
+      setTranslatedProvinces(PROVINCES);
+      setTranslatedSpots(dbSpots);
+      setTranslatedRecipes(RECIPES);
+      setTranslatedBlogPosts(BLOG_POSTS);
+      setTranslatedEvents(EVENTS);
+      setTranslatedCultureTopics(CULTURE_TOPICS);
+      return;
+    }
+
+    const cacheKey = `translated_data_${language}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setTranslatedProvinces(parsed.provinces);
+        setTranslatedSpots(parsed.spots);
+        setTranslatedRecipes(parsed.recipes);
+        setTranslatedBlogPosts(parsed.blogPosts);
+        setTranslatedEvents(parsed.events);
+        setTranslatedCultureTopics(parsed.cultureTopics);
+        return;
+      }
+    } catch (e) {
+      console.warn("Failed to load cached translation", e);
+    }
+
+    // Translate datasets in background sequentially with short delay to respect Gemini API rate limits
+    const translateAllDatasets = async () => {
+      setIsTranslating(true);
+      try {
+        const provs = await translateProvinces(PROVINCES, language);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const sps = await translateSpots(dbSpots, language);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const recs = await translateRecipes(RECIPES, language);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const posts = await translateBlogPosts(BLOG_POSTS, language);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const evs = await translateEvents(EVENTS, language);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const topics = await translateCultureTopics(CULTURE_TOPICS, language);
+
+        setTranslatedProvinces(provs);
+        setTranslatedSpots(sps);
+        setTranslatedRecipes(recs);
+        setTranslatedBlogPosts(posts);
+        setTranslatedEvents(evs);
+        setTranslatedCultureTopics(topics);
+
+        // Cache the result
+        localStorage.setItem(cacheKey, JSON.stringify({
+          provinces: provs,
+          spots: sps,
+          recipes: recs,
+          blogPosts: posts,
+          events: evs,
+          cultureTopics: topics
+        }));
+      } catch (err) {
+        console.error("Dynamic translation error", err);
+      } finally {
+        setIsTranslating(false);
+      }
+    };
+
+    translateAllDatasets();
+  }, [language, dbSpots]);
 
   // Scroll to top detection
   useEffect(() => {
@@ -317,7 +722,7 @@ export default function App() {
           onToggleFavorite={handleToggleFavorite}
           onAddCommentToast={showToast}
           onAddSpotToPlanner={handleAddSpotToPlanner}
-          spots={dbSpots}
+          spots={translatedSpots}
           currentUser={currentUser}
           onNavigateToAuth={() => setCurrentView("account")}
         />
@@ -343,14 +748,14 @@ export default function App() {
             onSearch={(term) => {
               const termLower = term.toLowerCase();
               // Try to find matching spot
-              const matchedSpot = dbSpots.find((s) => s.name.toLowerCase().includes(termLower));
+              const matchedSpot = translatedSpots.find((s) => s.name.toLowerCase().includes(termLower));
               if (matchedSpot) {
                 setSelectedSpotId(matchedSpot.id);
                 showToast(`Destino "${matchedSpot.name}" encontrado!`);
                 return;
               }
               // Try to find matching province
-              const matchedProvince = PROVINCES.find((p) => p.name.toLowerCase().includes(termLower));
+              const matchedProvince = translatedProvinces.find((p) => p.name.toLowerCase().includes(termLower));
               if (matchedProvince) {
                 setCurrentView("provinces");
                 setSelectedProvinceId(matchedProvince.id);
@@ -364,7 +769,7 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             translate={translate}
             isDarkMode={isDarkMode}
-            spots={dbSpots}
+            spots={translatedSpots}
           />
         );
       case "provinces":
@@ -376,7 +781,8 @@ export default function App() {
             translate={translate}
             isDarkMode={isDarkMode}
             onAddCommentToast={showToast}
-            spots={dbSpots}
+            spots={translatedSpots}
+            provinces={translatedProvinces}
           />
         );
       case "map":
@@ -386,7 +792,7 @@ export default function App() {
             translate={translate}
             isDarkMode={isDarkMode}
             onAddSpotToPlanner={handleAddSpotToPlanner}
-            spots={dbSpots}
+            spots={translatedSpots}
           />
         );
       case "planner":
@@ -398,7 +804,7 @@ export default function App() {
             translate={translate}
             isDarkMode={isDarkMode}
             onAddCommentToast={showToast}
-            spots={dbSpots}
+            spots={translatedSpots}
             currentUser={currentUser}
             onNavigateToAuth={() => setCurrentView("account")}
             tripDays={tripDays}
@@ -413,6 +819,8 @@ export default function App() {
             translate={translate}
             isDarkMode={isDarkMode}
             onAddCommentToast={showToast}
+            recipes={translatedRecipes}
+            cultureTopics={translatedCultureTopics}
           />
         );
       case "blog":
@@ -421,6 +829,7 @@ export default function App() {
             translate={translate}
             isDarkMode={isDarkMode}
             onAddCommentToast={showToast}
+            blogPosts={translatedBlogPosts}
           />
         );
       case "account":
@@ -432,7 +841,7 @@ export default function App() {
             translate={translate}
             isDarkMode={isDarkMode}
             onAddCommentToast={showToast}
-            spots={dbSpots}
+            spots={translatedSpots}
             currentUser={currentUser}
             onAuthChange={(session) => {
               setCurrentUser(session);
@@ -509,24 +918,9 @@ export default function App() {
             })}
           </nav>
 
-          {/* Preferences bar (Theme, i18n, Hamburguer) */}
+          {/* Preferences bar (Theme, Hamburguer) */}
           <div className="flex items-center gap-2">
             
-            {/* Language dropdown select */}
-            <div className="relative group flex items-center bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 p-1.5 rounded-xl">
-              <Globe className="w-4 h-4 text-gray-400" />
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="bg-transparent text-xs font-bold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer pl-1"
-              >
-                <option value="pt">PT</option>
-                <option value="en">EN</option>
-                <option value="fr">FR</option>
-                <option value="es">ES</option>
-              </select>
-            </div>
-
             {/* Dark Mode toggle */}
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}

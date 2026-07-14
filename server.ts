@@ -480,6 +480,207 @@ Apresente as respostas usando formatação Markdown elegante, com negritos, list
   }
 });
 
+// ==========================================
+// DYNAMIC TRANSLATION SERVICE
+// ==========================================
+const offlineTranslateText = (str: string, targetLanguage: string): string => {
+  if (!str) return str;
+  let result = str;
+  if (targetLanguage === "en") {
+    result = result
+      .replace(/Descubra Angola/g, "Discover Angola")
+      .replace(/Províncias/g, "Provinces")
+      .replace(/História/g, "History")
+      .replace(/Localização/g, "Location")
+      .replace(/População/g, "Population")
+      .replace(/Clima/g, "Climate")
+      .replace(/Cultura/g, "Culture")
+      .replace(/Gastronomia/g, "Gastronomy")
+      .replace(/Curiosidades/g, "Curiosities")
+      .replace(/Melhor Época para Visitar/g, "Best Season to Visit")
+      .replace(/Hotéis/g, "Hotels")
+      .replace(/Restaurantes/g, "Restaurants")
+      .replace(/Transportes/g, "Transports")
+      .replace(/Início/g, "Home")
+      .replace(/Mapa/g, "Map")
+      .replace(/Planeador/g, "Planner")
+      .replace(/Saber Mais/g, "Learn More")
+      .replace(/Ver todos/g, "View all")
+      .replace(/Pesquisar/g, "Search")
+      .replace(/Por que visitar Angola\?/g, "Why visit Angola?")
+      .replace(/Depoimentos de Exploradores/g, "Explorers' Testimonials")
+      .replace(/Comentário/g, "Comment")
+      .replace(/Resposta/g, "Reply");
+    return result;
+  }
+  if (targetLanguage === "fr") {
+    result = result
+      .replace(/Descubra Angola/g, "Découvrez l'Angola")
+      .replace(/Províncias/g, "Provinces")
+      .replace(/História/g, "Histoire")
+      .replace(/Localização/g, "Emplacement")
+      .replace(/População/g, "Population")
+      .replace(/Clima/g, "Climat")
+      .replace(/Cultura/g, "Culture")
+      .replace(/Gastronomia/g, "Gastronomie")
+      .replace(/Curiosidades/g, "Curiosités")
+      .replace(/Melhor Época para Visitar/g, "Meilleure Saison à Visiter")
+      .replace(/Hotéis/g, "Hôtels")
+      .replace(/Restaurantes/g, "Restaurants")
+      .replace(/Transportes/g, "Transports")
+      .replace(/Início/g, "Accueil")
+      .replace(/Mapa/g, "Carte")
+      .replace(/Planeador/g, "Planificateur")
+      .replace(/Saber Mais/g, "Savoir Plus")
+      .replace(/Ver todos/g, "Voir tout")
+      .replace(/Pesquisar/g, "Rechercher")
+      .replace(/Por que visitar Angola\?/g, "Pourquoi visiter l'Angola?")
+      .replace(/Depoimentos de Exploradores/g, "Témoignages d'Explorateurs");
+    return result;
+  }
+  if (targetLanguage === "es") {
+    result = result
+      .replace(/Descubra Angola/g, "Descubre Angola")
+      .replace(/Províncias/g, "Provincias")
+      .replace(/História/g, "Historia")
+      .replace(/Localização/g, "Ubicación")
+      .replace(/População/g, "Población")
+      .replace(/Clima/g, "Clima")
+      .replace(/Cultura/g, "Cultura")
+      .replace(/Gastronomia/g, "Gastronomía")
+      .replace(/Curiosidades/g, "Curiosidades")
+      .replace(/Melhor Época para Visitar/g, "Mejor Época para Visitar")
+      .replace(/Hotéis/g, "Hoteles")
+      .replace(/Restaurantes/g, "Restaurantes")
+      .replace(/Transportes/g, "Transportes")
+      .replace(/Início/g, "Inicio")
+      .replace(/Mapa/g, "Mapa")
+      .replace(/Planeador/g, "Planificador")
+      .replace(/Saber Mais/g, "Saber Más")
+      .replace(/Ver todos/g, "Ver todos")
+      .replace(/Pesquisar/g, "Buscar")
+      .replace(/Por que visitar Angola\?/g, "¿Por qué visitar Angola?")
+      .replace(/Depoimentos de Exploradores/g, "Testimonios de Exploradores");
+    return result;
+  }
+  return result;
+};
+
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delay = 1000
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const errorStr = ((error?.message || "") + " " + JSON.stringify(error || "")).toLowerCase();
+    const isRateLimit = error?.status === 429 || errorStr.includes("429") || errorStr.includes("quota") || error?.code === 429;
+    const isServiceUnavailable = error?.status === 503 || errorStr.includes("503") || errorStr.includes("unavailable") || error?.code === 503;
+    
+    if ((isRateLimit || isServiceUnavailable) && retries > 0) {
+      console.warn(`Gemini API rate limited or service unavailable. Retrying in ${delay}ms... (${retries} retries left)`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return retryWithBackoff(fn, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
+
+app.post("/api/translate", async (req, res) => {
+  const { text, texts, targetLanguage } = req.body;
+  try {
+    if (!targetLanguage) {
+      return res.status(400).json({ error: "targetLanguage is required" });
+    }
+
+    if (targetLanguage === "pt") {
+      // Already in source language
+      if (texts && Array.isArray(texts)) {
+        return res.json({ translatedTexts: texts });
+      }
+      return res.json({ translatedText: text });
+    }
+
+    const langName = {
+      en: "English",
+      fr: "French",
+      es: "Spanish",
+      pt: "Portuguese"
+    }[targetLanguage as string] || targetLanguage;
+
+    const hasApiKey = !!process.env.GEMINI_API_KEY;
+    if (!hasApiKey) {
+      if (texts && Array.isArray(texts)) {
+        return res.json({ translatedTexts: texts.map(t => offlineTranslateText(t, targetLanguage)) });
+      }
+      return res.json({ translatedText: offlineTranslateText(text, targetLanguage) });
+    }
+
+    const ai = getGeminiClient();
+
+    if (texts && Array.isArray(texts)) {
+      const systemInstruction = `You are a professional, high-fidelity language translator. 
+Translate the provided list of strings accurately to ${langName}.
+Keep the same tone, preserve proper names like "Kalandula", "Leba", "Angola", "Luanda", "Malanje", "Benguela", "Huíla", "Namibe" if they shouldn't change.
+Return ONLY a valid JSON array of strings containing the translations, in the exact same order as the input. Do not wrap in markdown or say anything else.`;
+
+      const prompt = `Translate the following array of strings to ${langName}: \n${JSON.stringify(texts)}`;
+
+      try {
+        const response = await retryWithBackoff(async () => {
+          return await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: prompt,
+            config: {
+              systemInstruction,
+              temperature: 0.1,
+              responseMimeType: "application/json"
+            }
+          });
+        }, 3, 1000);
+
+        const parsed = JSON.parse(response.text || "[]");
+        return res.json({ translatedTexts: parsed });
+      } catch (err: any) {
+        console.error("Gemini list translation failed (falling back to offline):", err);
+        // Fallback to offline translation
+        return res.json({ translatedTexts: texts.map(t => offlineTranslateText(t, targetLanguage)) });
+      }
+    } else if (text) {
+      const systemInstruction = `You are a professional language translator. Translate the text to ${langName}. 
+Preserve formatting, tone, and line breaks. Return ONLY the translated text. No explanations.`;
+
+      try {
+        const response = await retryWithBackoff(async () => {
+          return await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: text,
+            config: {
+              systemInstruction,
+              temperature: 0.1,
+            }
+          });
+        }, 3, 1000);
+
+        return res.json({ translatedText: response.text });
+      } catch (err: any) {
+        console.error("Gemini text translation failed (falling back to offline):", err);
+        return res.json({ translatedText: offlineTranslateText(text, targetLanguage) });
+      }
+    } else {
+      return res.status(400).json({ error: "Either text or texts is required" });
+    }
+  } catch (error: any) {
+    console.error("Translation API Critical Error:", error);
+    // Ultimate fallback: return original text/texts rather than crashing or returning 500
+    if (texts && Array.isArray(texts)) {
+      return res.json({ translatedTexts: texts.map(t => offlineTranslateText(t, targetLanguage)) });
+    }
+    return res.json({ translatedText: offlineTranslateText(text || "", targetLanguage) });
+  }
+});
+
 // Configure Vite middleware or static serving
 async function setupServer() {
   if (process.env.NODE_ENV !== "production") {
