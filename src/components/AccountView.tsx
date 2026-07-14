@@ -232,13 +232,13 @@ export default function AccountView({
       <AnimatePresence mode="wait">
         {!currentUser ? (
           /* Authentication Screen */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
-            {/* Left side: Login / Signup form */}
+          <div className="max-w-md mx-auto">
+            {/* Login / Signup form */}
             <motion.div
               key="auth-form"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
               className="bg-white dark:bg-brand-dark border border-gray-150 dark:border-gray-800 p-8 rounded-3xl shadow-sm space-y-6"
             >
               <div className="text-center space-y-2">
@@ -335,72 +335,6 @@ export default function AccountView({
                 >
                   {authMode === "login" ? "Não tem uma conta? Cadastre-se" : "Já tem conta? Inicie sessão"}
                 </button>
-              </div>
-            </motion.div>
-
-            {/* Right side: Facebook/TikTok saved accounts switcher list */}
-            <motion.div
-              key="saved-accounts"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="bg-white dark:bg-brand-dark border border-gray-150 dark:border-gray-800 p-8 rounded-3xl shadow-sm space-y-6 h-full min-h-[400px]"
-            >
-              <div className="space-y-1">
-                <h3 className="text-sm font-black uppercase text-gray-900 dark:text-white tracking-wider flex items-center gap-1.5">
-                  <Globe className="text-brand-red w-4.5 h-4.5" />
-                  <span>Sessões Salvas (Multiconta)</span>
-                </h3>
-                <p className="text-[11px] text-gray-400">
-                  Como no Facebook e TikTok, pode ter várias contas salvas e alternar entre elas com apenas um clique!
-                </p>
-              </div>
-
-              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
-                {savedAccounts.map((acc) => (
-                  <div
-                    key={acc.email}
-                    onClick={() => handleSwitchAccount(acc)}
-                    className="p-3 bg-gray-50 hover:bg-gray-100 dark:bg-brand-dark/20 dark:hover:bg-brand-dark/50 border border-gray-200 dark:border-gray-850 rounded-2xl flex items-center justify-between gap-4 cursor-pointer transition group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 bg-brand-red/10 text-brand-red dark:text-brand-yellow font-bold text-xs flex items-center justify-center rounded-xl flex-shrink-0">
-                        {acc.username.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <h5 className="font-bold text-xs text-gray-900 dark:text-white truncate group-hover:text-brand-red transition">
-                          {acc.username}
-                        </h5>
-                        <p className="text-[10px] text-gray-400 truncate">{acc.email}</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={(e) => handleRemoveSaved(e, acc.email)}
-                      className="p-1.5 text-gray-300 hover:text-brand-red hover:bg-gray-200/50 dark:hover:bg-brand-dark rounded-lg transition"
-                      title="Remover conta deste dispositivo"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-
-                {savedAccounts.length === 0 && (
-                  <div className="text-center py-8 text-gray-300 border-2 border-dashed border-gray-100 dark:border-gray-850 rounded-2xl">
-                    <User className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-700 mb-2" />
-                    <p className="text-xs font-semibold">Nenhuma conta salva</p>
-                    <p className="text-[10px] text-gray-400 px-4 mt-0.5">
-                      Crie uma conta para salvá-la neste dispositivo para acesso rápido!
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-gray-50 dark:bg-brand-dark/30 p-4 rounded-2xl text-[11px] text-gray-400 leading-relaxed space-y-2">
-                <span className="font-bold text-gray-500 uppercase tracking-wide block">Como funciona?</span>
-                <p>
-                  Quando entra numa conta, as credenciais de sessão são armazenadas em segurança no browser. Ao sair, pode adicionar novas contas com logins e emails diferentes e mudar de conta instantaneamente.
-                </p>
               </div>
             </motion.div>
           </div>
