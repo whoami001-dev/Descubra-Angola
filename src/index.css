@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Playfair Display", "Georgia", serif;
+  
+  --color-brand-red: #CE1126;
+  --color-brand-red-hover: #A50E1E;
+  --color-brand-yellow: #F9D616;
+  --color-brand-green: #007A33;
+  --color-brand-dark: #1A1A1A;
+  --color-brand-light: #F8F9FA;
+}
+
+/* Custom CSS helper utilities */
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin 16s linear infinite;
+  }
+}
+
+/* Custom Background Grids */
+.bg-grid-slate-100\/50 {
+  background-image: radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.dark .bg-grid-slate-100\/50 {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 16px 16px;
+}

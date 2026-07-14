@@ -1,0 +1,6 @@
+{
+  "name": "Descubra Angola",
+  "description": "Portal turístico completo e interativo para explorar as belezas naturais, províncias, cultura e história de Angola, completo com planejador de roteiros, mapa interativo, galeria de mídia e assistente de IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
