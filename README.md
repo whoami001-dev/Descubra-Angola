@@ -5,8 +5,8 @@
 **Prerequisites:**  Node.js
 
 
-1. Install dependencies:
+1. Instalar dependências:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Configurar `GEMINI_API_KEY` na [.env.local](.env.local) para o seu  Gemini API key, para o site poder usar o seu Ia
+3. E rodar a aplicação:
    `npm run dev`
