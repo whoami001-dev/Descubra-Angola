@@ -1,8 +1,8 @@
 
 
-## Run Locally
+Rodar Localmente 
 
-**Prerequisites:**  Node.js
+**Pré-requisitos:**  Node.js
 
 
 1. Instalar dependências:
